@@ -56,19 +56,30 @@ export const deleteEvent = async (eventId) => {
   }
 };
 
-export const toggleFavorite = async (eventId, favoriteEvents, setFavoriteEvents) => {
-  try {
-    if (favoriteEvents.includes(eventId)) {
-      const favoriteDoc = await getDocs(collection(firestore, 'favorites'));
-      const favoriteToDelete = favoriteDoc.docs.find(doc => doc.data().eventId === eventId && doc.data().userId === auth.currentUser.uid);
-      await deleteDoc(doc(firestore, 'favorites', favoriteToDelete.id));
-    } else {
-      await addDoc(collection(firestore, 'favorites'), {
+export const toggleFavorite = async (eventId, addFavorite) => {
+  const favoritesRef = collection(firestore, 'favorites');
+  const userId = auth.currentUser.uid;
+
+  if (addFavorite) {
+    try {
+      await addDoc(favoritesRef, {
         eventId,
-        userId: auth.currentUser.uid,
+        userId
       });
+    } catch (error) {
+      console.error('Error adding to favorites: ', error);
     }
-  } catch (error) {
-    console.error('Error updating favorites: ', error);
+  } else {
+    try {
+      const snapshot = await getDocs(favoritesRef);
+      snapshot.forEach((doc) => {
+        if (doc.data().eventId === eventId && doc.data().userId === userId) {
+          deleteDoc(doc.ref); 
+        }
+      });
+    } catch (error) {
+      console.error('Error removing from favorites: ', error);
+    }
   }
 };
+

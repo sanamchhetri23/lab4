@@ -65,8 +65,17 @@ const EventScreen = ({ navigation }) => {
   };
 
   const handleFavoriteButtonPress = async (eventId) => {
-    await toggleFavorite(eventId, favoriteEvents, setFavoriteEvents);
+    try {
+      if (favoriteEvents.includes(eventId)) {
+        await toggleFavorite(eventId, false); 
+      } else {
+        await toggleFavorite(eventId, true); 
+      }
+    } catch (error) {
+      console.error('Error toggling favorite: ', error);
+    }
   };
+  
 
   const handleLogout = async () => {
     try {
