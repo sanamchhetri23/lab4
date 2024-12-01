@@ -19,26 +19,33 @@ export const fetchFavorites = (setFavoriteEvents) => {
   return unsubscribeFavorites;
 };
 
-export const addEvent = async (eventName) => {
+export const addEvent = async (eventName, eventDate, eventVenue) => {
   try {
     await addDoc(collection(firestore, 'events'), {
       name: eventName,
       createdBy: auth.currentUser.uid,
       isFavorite: false,
+      date: eventDate,
+      venue: eventVenue,
     });
   } catch (error) {
     console.error('Error adding event: ', error);
   }
 };
 
-export const editEvent = async (eventId, eventName) => {
+export const editEvent = async (eventId, eventName, eventDate, eventVenue) => {
   try {
     const eventRef = doc(firestore, 'events', eventId);
-    await updateDoc(eventRef, { name: eventName });
+    await updateDoc(eventRef, { 
+      name: eventName,
+      date: eventDate,
+      venue: eventVenue,
+    });
   } catch (error) {
     console.error('Error updating event: ', error);
   }
 };
+
 
 export const deleteEvent = async (eventId) => {
   try {

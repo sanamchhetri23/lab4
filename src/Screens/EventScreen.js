@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Modal, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchEvents, fetchFavorites, addEvent, editEvent, deleteEvent, toggleFavorite } from '../database/firebase'; 
 import { auth } from '../../firebaseConfig';
 
 const EventScreen = ({ navigation }) => {
   const [events, setEvents] = useState([]);
   const [newEvent, setNewEvent] = useState('');
+  const [eventVenue, setEventVenue] = useState('');
+  const [eventDateTime, setEventDateTime] = useState(new Date());
   const [isEditing, setIsEditing] = useState(false);
   const [editingEventId, setEditingEventId] = useState('');
   const [favoriteEvents, setFavoriteEvents] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalEventName, setModalEventName] = useState('');
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
 
   useEffect(() => {
     const unsubscribeEvents = fetchEvents(setEvents);
@@ -32,22 +36,28 @@ const EventScreen = ({ navigation }) => {
   }, [navigation]);
 
   const handleAddEvent = async () => {
-    if (newEvent.trim() === '') return;
-    await addEvent(newEvent);
+    if (newEvent.trim() === '' || eventVenue.trim() === '') return;
+    await addEvent(newEvent, eventDateTime.toISOString(), eventVenue);
     setNewEvent('');
+    setEventVenue('');
+    setEventDateTime(new Date());
   };
 
-  const handleEditEvent = (eventId, eventName) => {
+  const handleEditEvent = (eventId, eventName, eventVenue, eventDate) => {
     setIsModalVisible(true);
     setEditingEventId(eventId);
     setModalEventName(eventName);
+    setEventVenue(eventVenue);
+    setEventDateTime(new Date(eventDate));
   };
 
   const handleSaveEvent = async () => {
     if (modalEventName.trim() === '') return;
-    await editEvent(editingEventId, modalEventName);
+    await editEvent(editingEventId, modalEventName, eventDateTime.toISOString(), eventVenue);
     setIsModalVisible(false);
     setModalEventName('');
+    setEventVenue('');
+    setEventDateTime(new Date());
   };
 
   const handleDeleteEvent = async (id) => {
@@ -68,6 +78,16 @@ const EventScreen = ({ navigation }) => {
     }
   };
 
+  const showDateTimepicker = () => {
+    setShowDateTimePicker(true);
+  };
+
+  const onDateTimeChange = (event, selectedDateTime) => {
+    const currentDateTime = selectedDateTime || eventDateTime;
+    setShowDateTimePicker(false);
+    setEventDateTime(currentDateTime);
+  };
+
   return (
     <View style={styles.container}>
       <TextInput
@@ -76,6 +96,19 @@ const EventScreen = ({ navigation }) => {
         value={newEvent}
         onChangeText={setNewEvent}
       />
+      <TextInput
+        style={styles.input}
+        placeholder="Event Venue"
+        value={eventVenue}
+        onChangeText={setEventVenue}
+      />
+
+      <TouchableOpacity style={styles.datePickerButton} onPress={showDateTimepicker}>
+        <Text style={styles.datePickerText}>
+          {eventDateTime.toLocaleString()} 
+        </Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.button, isEditing ? styles.saveButton : styles.addButton]}
         onPress={isEditing ? handleSaveEvent : handleAddEvent}
@@ -89,9 +122,11 @@ const EventScreen = ({ navigation }) => {
         renderItem={({ item }) => (
           <View style={styles.eventCard}>
             <Text style={styles.eventText}>{item.name}</Text>
+            <Text style={styles.eventText}>Venue: {item.venue}</Text>
+            <Text style={styles.eventText}>Date: {new Date(item.date).toLocaleString()}</Text>
             {item.createdBy === auth.currentUser.uid && (
               <View style={styles.eventActions}>
-                <TouchableOpacity onPress={() => handleEditEvent(item.id, item.name)}>
+                <TouchableOpacity onPress={() => handleEditEvent(item.id, item.name, item.venue, item.date)}>
                   <Text style={styles.editButton}>Edit</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => handleDeleteEvent(item.id)}>
@@ -131,6 +166,13 @@ const EventScreen = ({ navigation }) => {
               onChangeText={setModalEventName}
               placeholder="Enter event name"
             />
+            <TextInput
+              style={styles.modalInput}
+              value={eventVenue}
+              onChangeText={setEventVenue}
+              placeholder="Enter event venue"
+            />
+            
             <TouchableOpacity onPress={handleSaveEvent} style={styles.modalButton}>
               <Text style={styles.modalButtonText}>Save Changes</Text>
             </TouchableOpacity>
@@ -140,6 +182,15 @@ const EventScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {showDateTimePicker && (
+        <DateTimePicker
+          value={eventDateTime}
+          mode="datetime"
+          display="default"
+          onChange={onDateTimeChange}
+        />
+      )}
     </View>
   );
 };
@@ -148,74 +199,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f8f8f8',
   },
   input: {
-    height: 45,
-    borderColor: '#ced4da',
+    height: 40,
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingLeft: 12,
-    marginBottom: 20,
+    marginBottom: 12,
+    paddingLeft: 8,
     backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3.5,
-    elevation: 5,
   },
   button: {
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '40%',
-    alignSelf: 'center',
-    marginBottom: 20,
+    marginTop: 20,
+    padding: 10,
+    borderRadius: 5,
   },
   addButton: {
-    backgroundColor: 'green',
+    backgroundColor: '#28a745',
   },
   saveButton: {
     backgroundColor: '#007bff',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
   eventCard: {
-    backgroundColor: '#ffffff',
-    padding: 15,
-    marginVertical: 10,
-    borderRadius: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
+    padding: 10,
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    borderRadius: 5,
   },
   eventText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#343a40',
+    fontSize: 16,
+    marginBottom: 5,
   },
   eventActions: {
     flexDirection: 'row',
-    marginTop: 10,
+    justifyContent: 'space-between',
   },
   editButton: {
-    color: '#17a2b8',
-    marginRight: 15,
+    color: '#007bff',
   },
   deleteButton: {
-    color: '#dc3545',
+    color: '#ff0000',
   },
   favoriteContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
     marginTop: 10,
   },
   favoriteButton: {
@@ -223,18 +254,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   favoriteText: {
-    fontSize: 14,
-    color: '#28a745',
     marginLeft: 5,
   },
   logoutButton: {
-    paddingRight: 20,
+    marginRight: 20,
   },
   logoutText: {
-    color: '#dc3545',
-    fontWeight: 'bold',
+    color: '#007bff',
   },
-
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -242,42 +269,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
     width: '80%',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 10,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 10,
     textAlign: 'center',
   },
   modalInput: {
     height: 40,
-    borderColor: '#ced4da',
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingLeft: 12,
-    marginBottom: 20,
+    marginBottom: 12,
+    paddingLeft: 8,
+    backgroundColor: '#fff',
   },
   modalButton: {
-    backgroundColor: '#28a745',
+    marginTop: 12,
+    backgroundColor: '#007bff',
     padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
+    borderRadius: 5,
+  },
+  modalCancelButton: {
+    marginTop: 10,
+    backgroundColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
   },
   modalButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
-  modalCancelButton: {
-    backgroundColor: '#dc3545',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
+  datePickerButton: {
+    marginBottom: 10,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#007bff',
   },
 });
 
