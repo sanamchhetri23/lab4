@@ -1,20 +1,64 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import Navigator from './src/Navigation/Navigator';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
+const App = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSplashVisible, setIsSplashVisible] = useState(true); 
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsSplashVisible(false);
+    }, 1500); 
+    return () => clearTimeout(timer); 
+  }, []);
+
+  const handleLoginSuccess = (navigation) => {
+    setIsLoggedIn(true);
+    navigation.replace('TabNavigator');
+  };
+
+  const handleSignUpSuccess = (navigation) => {
+    setIsLoggedIn(true);
+    navigation.replace('TabNavigator');
+  };
+
+  const SplashScreen = () => (
+    <View style={styles.splashContainer}>
+      <Text style={styles.splashText}>Event Organize App</Text>
+      <ActivityIndicator size="large" color="#fff" />
     </View>
   );
-}
+
+  if (isSplashVisible) {
+    return <SplashScreen />;
+  }
+
+  return (
+    <NavigationContainer>
+      <Navigator
+        isLoggedIn={isLoggedIn}
+        handleLoginSuccess={handleLoginSuccess}
+        handleSignUpSuccess={handleSignUpSuccess}
+      />
+    </NavigationContainer>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: {
+  splashContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'gray',
+  },
+  splashText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 20,
   },
 });
+
+export default App;
